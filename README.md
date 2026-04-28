@@ -101,9 +101,10 @@ Then start the app server on your laptop/machine w/ a camera:
 ```bash
 pip install -r app_server_requirements.txt
 
-python app.py
-```
+# windows
+$env:CAM_INDEX="0"; $env:HOST="ubuntu"; $env:INFERENCE_PORT="8001"; python app.py
 
+```
 ---
 
 ## 6 — Update model weights after a new training run
