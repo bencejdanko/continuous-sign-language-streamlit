@@ -59,30 +59,15 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
 ---
 
-## 2 — Install Python dependencies
+## 2 — Pull repo and Install Python dependencies
 
 ```bash
-pip install \
-  fastapi "uvicorn[standard]" httpx \
-  mediapipe opencv-python \
-  transformers sentencepiece \
-  huggingface_hub \
-  datasets \
-  numpy pydantic
-```
+git clone https://github.com/bencejdanko/continuous-sign-language-demo-agx-orin
 
-> [!NOTE]
-> `mediapipe` ships pre-compiled wheels for aarch64 since v0.10.
-> If your version doesn't have an aarch64 wheel, install from source:
-> https://github.com/google-ai-edge/mediapipe/blob/master/docs/getting_started/install.md
+cd continuous-sign-language-demo-agx-orin
 
----
+pip install -r inference_server_requirements.txt
 
-## 3 — Clone the repo
-
-```bash
-git clone https://github.com/bencejdanko/continuous-sign-language-translation
-cd continuous-sign-language-translation
 chmod +x start.sh
 ```
 
@@ -90,7 +75,7 @@ chmod +x start.sh
 
 ## 4 — Set your Hugging Face token
 
-The inference l model weights from `bdanko/continuous-sign-language-translation` on startup.
+The inference l model weights from on startup.
 
 ```bash
 export HF_TOKEN="hf_your_token_here"
@@ -105,12 +90,19 @@ echo 'export HF_TOKEN="hf_your_token_here"' >> ~/.bashrc
 ```bash
 # Start both servers (blocks; Ctrl-C to stop)
 HF_TOKEN=$HF_TOKEN ./start.sh
-
-# With a non-default camera
-CAM_INDEX=1 HF_TOKEN=$HF_TOKEN ./start.sh
 ```
 
 Open `http://<orin-ip>:8000` in a browser on any machine on the same network.
+
+---
+
+Then start the app server on your laptop/machine w/ a camera:
+
+```bash
+pip install -r app_server_requirements.txt
+
+python app.py
+```
 
 ---
 
@@ -124,60 +116,3 @@ curl -X POST http://localhost:8001/reload
 ```
 
 This re-downloads `semantic_encoder.pth` and `translation_model.pth` from HF and swaps them in-place with no downtime.
-
----
-
-## 7 — Autostart with systemd (optional)
-
-Create `/etc/systemd/system/csl-demo.service`:
-
-```ini
-[Unit]
-Description=Continuous Sign Language Translation Demo
-After=network.target
-
-[Service]
-Type=forking
-User=YOUR_USERNAME
-WorkingDirectory=/path/to/continuous-sign-language-translation
-Environment="HF_TOKEN=hf_your_token_here"
-Environment="CAM_INDEX=0"
-ExecStart=/bin/bash /path/to/continuous-sign-language-translation/start.sh
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable csl-demo
-sudo systemctl start csl-demo
-```
-
----
-
-## 8 — Troubleshooting
-
-| Symptom | Fix |
-|---|---|
-| `torch.cuda.is_available()` returns `False` | Installed wrong wheel — re-install Jetson wheel from §1 |
-| `mediapipe` import error | `pip install --upgrade mediapipe` or build from source |
-| `httpx.ConnectError` on translate | Inference server isn't ready — check `curl http://localhost:8001/health` |
-| Translation is `[no translation]` | Model is freshly initialised (run full Colab training first) |
-| Camera not found | Try `CAM_INDEX=1` or check `ls /dev/video*` |
-| OOM on `translation_model.pth` (308 MB) | Ensure ≥8 GB unified memory; close other GPU apps |
-
----
-
-## 9 — File reference
-
-| File | Purpose |
-|---|---|
-| `app.py` | Demo frontend — camera, record, MediaPipe, WS |
-| `inference_server.py` | Model server — `/translate`, `/reload`, `/health` |
-| `data.py` | Feature engineering shared by training and inference |
-| `models.py` | `SemanticEncoder`, `DiffusionDecoder`, `TranslationModel` |
-| `start.sh` | Starts both servers; waits for inference health check |
-| `colab_phase1_diffusion.ipynb` | Phase 1 training notebook (Colab) |
-| `colab_phase2_translation.ipynb` | Phase 2 translation training notebook (Colab) |
